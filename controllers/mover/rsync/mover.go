@@ -19,6 +19,7 @@ package rsync
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -65,6 +66,8 @@ type Mover struct {
 	sourceStatus       *volsyncv1alpha1.ReplicationSourceRsyncStatus
 	destStatus         *volsyncv1alpha1.ReplicationDestinationRsyncStatus
 	latestMoverStatus  *volsyncv1alpha1.MoverStatus
+	nodeIP             string
+	nodeName           string
 }
 
 var _ mover.Mover = &Mover{}
@@ -161,7 +164,17 @@ func (m *Mover) ensureServiceAndPublishAddress(ctx context.Context) (bool, error
 }
 
 func (m *Mover) publishSvcAddress(service *corev1.Service) (bool, error) {
-	address := utils.GetServiceAddress(service)
+	var address string
+	if service.Spec.Type == corev1.ServiceTypeNodePort {
+		if m.nodeName == "" || m.nodeIP == "" {
+			return false, fmt.Errorf("invalid node port configuration, node ip/name annotation must be set")
+		}
+		address = m.nodeIP
+		m.logger.V(1).Info("found address with node port configuration", "address", address)
+	} else {
+		address = utils.GetServiceAddress(service)
+	}
+
 	if address == "" {
 		// We don't have an address yet, try again later
 		m.updateStatusAddress(nil)
@@ -175,7 +188,15 @@ func (m *Mover) publishSvcAddress(service *corev1.Service) (bool, error) {
 	}
 	m.updateStatusAddress(&address)
 
-	m.logger.V(1).Info("Service addr published", "address", address)
+	if service.Spec.Type == corev1.ServiceTypeNodePort {
+		if len(service.Spec.Ports) != 1 {
+			return false, fmt.Errorf("invalid service: %#v", service)
+		}
+		np := service.Spec.Ports[0].NodePort
+		m.updateStatusPort(&np)
+	}
+
+	m.logger.V(1).Info("Service addr published", "address", address, "service", service)
 	return true, nil
 }
 
@@ -198,6 +219,24 @@ func (m *Mover) updateStatusAddress(address *string) {
 		m.eventRecorder.Eventf(m.owner, nil, corev1.EventTypeNormal,
 			mover.EvRSvcAddress, mover.EvANone,
 			"listening on address %s for incoming connections", *address)
+	}
+}
+
+func (m *Mover) updateStatusPort(port *int32) {
+	if port == nil || m.isSource {
+		return
+	}
+
+	publishEvent := false
+	if m.destStatus.Port == nil || *m.destStatus.Port != *port {
+		publishEvent = true
+	}
+	m.destStatus.Port = port
+
+	if publishEvent && port != nil {
+		m.eventRecorder.Eventf(m.owner, nil, corev1.EventTypeNormal,
+			mover.EvRSvcAddress, mover.EvANone,
+			"listening on port %s for incoming connections", *port)
 	}
 }
 
@@ -441,6 +480,10 @@ func (m *Mover) ensureJob(ctx context.Context, dataPVC *corev1.PersistentVolumeC
 			}
 			job.Spec.Template.Spec.NodeSelector = affinity.NodeSelector
 			job.Spec.Template.Spec.Tolerations = affinity.Tolerations
+		}
+
+		if !m.isSource && m.nodeName != "" {
+			job.Spec.Template.Spec.NodeName = m.nodeName
 		}
 		logger.V(1).Info("Job has PVC", "PVC", dataPVC, "DS", dataPVC.Spec.DataSource)
 		return nil

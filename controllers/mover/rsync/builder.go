@@ -40,6 +40,9 @@ const (
 	// If command line flag not set, the RELATED_IMAGE_ env var will be used
 	rsyncContainerImageFlag   = "rsync-container-image"
 	rsyncContainerImageEnvVar = "RELATED_IMAGE_RSYNC_CONTAINER"
+
+	ReplicationNodeIPAnnoKey   = "jibudata.com/rsync-replication-node-ip"
+	ReplicationNodeNameAnnoKey = "jibudata.com/rsync-replication-node-name"
 )
 
 type Builder struct {
@@ -180,7 +183,7 @@ func (rb *Builder) FromDestination(client client.Client, logger logr.Logger,
 		svcAnnotations = *destination.Spec.Rsync.ServiceAnnotations
 	}
 
-	return &Mover{
+	m := &Mover{
 		client:             client,
 		logger:             logger.WithValues("method", "Rsync"),
 		eventRecorder:      eventRecorder,
@@ -198,5 +201,17 @@ func (rb *Builder) FromDestination(client client.Client, logger logr.Logger,
 		mainPVCName:        destination.Spec.Rsync.DestinationPVC,
 		destStatus:         destination.Status.Rsync,
 		latestMoverStatus:  destination.Status.LatestMoverStatus,
-	}, nil
+	}
+
+	annotations := destination.GetAnnotations()
+	if annotations != nil {
+		nodeName := annotations[ReplicationNodeNameAnnoKey]
+		nodeIP := annotations[ReplicationNodeIPAnnoKey]
+
+		if nodeName != "" && nodeIP != "" {
+			m.nodeIP = nodeIP
+			m.nodeName = nodeName
+		}
+	}
+	return m, nil
 }
