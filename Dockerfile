@@ -1,6 +1,8 @@
 # Build the manager binary
-FROM golang:1.20 as builder
+FROM golang:1.19.1 as builder
 USER root
+
+ENV GOPROXY=https://goproxy.cn,direct
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -27,7 +29,8 @@ RUN GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o manager -ldflags "-X=m
 #RUN nm manager | grep -q goboringcrypto
 
 # Final container
-FROM registry.access.redhat.com/ubi9-minimal
+# FROM registry.access.redhat.com/ubi9-minimal
+FROM jibutech/ubi8-minimal:latest
 
 # Needs openssh in order to generate ssh keys
 RUN microdnf --refresh update -y && \
