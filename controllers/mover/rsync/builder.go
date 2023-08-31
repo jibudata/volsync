@@ -39,6 +39,17 @@ const (
 	// If command line flag not set, the RELATED_IMAGE_ env var will be used
 	rsyncContainerImageFlag   = "rsync-container-image"
 	rsyncContainerImageEnvVar = "RELATED_IMAGE_RSYNC_CONTAINER"
+
+	// RsyncGatewayNodeLabel is the label used to identify some worker nodes that can be used as rsync gateway
+	// rsync gateway node uses external IP with node port on destination cluster to receive data
+	// the external IP can be attached to node from data replication network
+	RsyncGateWayNodeLabel = "volsync.backube/rsync-gateway-node"
+
+	// RsyncGatewayNodeIPAnnoKey is the annotation key used to store the external IP
+	RsyncGatewayNodeIPAnnoKey = "volsync.backube/rsync-gateway-node-external-ip"
+	// RsyncGatewayNodeNameAnnoKey is the key to store k8s worker node name as rsync gateway
+	// rsync daemon will be deployed on this node
+	RsyncGatewayNodeNameAnnoKey = "volsync.backube/rsync-gateway-node-name"
 )
 
 type Builder struct {
@@ -150,7 +161,7 @@ func (rb *Builder) FromDestination(client client.Client, logger logr.Logger,
 		return nil, err
 	}
 
-	return &Mover{
+	m := &Mover{
 		client:         client,
 		logger:         logger.WithValues("method", "Rsync"),
 		eventRecorder:  eventRecorder,
@@ -165,5 +176,18 @@ func (rb *Builder) FromDestination(client client.Client, logger logr.Logger,
 		paused:         destination.Spec.Paused,
 		mainPVCName:    destination.Spec.Rsync.DestinationPVC,
 		destStatus:     destination.Status.Rsync,
-	}, nil
+	}
+
+	annotations := destination.GetAnnotations()
+	if annotations != nil {
+		nodeName := annotations[RsyncGatewayNodeNameAnnoKey]
+		nodeIP := annotations[RsyncGatewayNodeIPAnnoKey]
+
+		if nodeName != "" && nodeIP != "" {
+			m.gatewayNodeExternalIP = nodeIP
+			m.gatewayNodeName = nodeName
+		}
+	}
+
+	return m, nil
 }
