@@ -1,4 +1,5 @@
-FROM registry.access.redhat.com/ubi9-minimal
+#FROM registry.access.redhat.com/ubi9-minimal
+FROM jibutech/ubi8-minimal:latest
 
 # Separate install for rsync is to install it w/ docs so that we get the rrsync
 # command

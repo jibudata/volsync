@@ -1,7 +1,7 @@
 # Common version info
 include ../version.mk
 
-IMAGE := quay.io/backube/volsync-mover-rsync
+IMAGE ?= quay.io/backube/volsync-mover-rsync
 
 .PHONY: all
 all: image
