@@ -1,0 +1,39 @@
+######################################################################
+# Establish a common builder image for all golang-based images
+FROM --platform=${TARGETPLATFORM} golang:1.20 as golang-builder
+USER root
+WORKDIR /workspace
+# We don't vendor modules. Enforce that behavior
+ENV GOFLAGS=-mod=readonly
+ENV GO111MODULE=on
+ENV CGO_ENABLED=1
+ARG TARGETOS
+ARG TARGETARCH
+ENV GOOS=${TARGETOS:-linux}
+ENV GOARCH=${TARGETARCH}
+ENV GOPROXY=https://goproxy.cn,direct
+
+
+######################################################################
+# Build the manager binary
+FROM --platform=${TARGETPLATFORM} golang-builder as manager-builder
+
+# Copy the Go Modules manifests & download dependencies
+COPY go.mod go.mod
+COPY go.sum go.sum
+RUN go mod download
+
+# Copy the go source
+COPY main.go main.go
+COPY api/ api/
+COPY controllers/ controllers/
+COPY config/openshift config/openshift
+
+# Build
+ARG version_arg="(unknown)"
+RUN go build -a -o manager -ldflags "-X=main.volsyncVersion=${version_arg}" main.go
+
+####################################################################
+FROM --platform=${TARGETPLATFORM} registry.cn-shanghai.aliyuncs.com/jibutech/volsync:0.8.0
+##### VolSync operator
+COPY --from=manager-builder /workspace/manager /manager
