@@ -496,6 +496,14 @@ func (m *Mover) ensureJob(ctx context.Context, dataPVC *corev1.PersistentVolumeC
 			job.Spec.Template.Spec.NodeName = m.gatewayNodeName
 		}
 		logger.V(1).Info("Job has PVC", "PVC", dataPVC, "DS", dataPVC.Spec.DataSource)
+
+		nodeSelector, err := mover.AffinityFromAnnotations(m.owner.GetAnnotations())
+		if err != nil {
+			return err
+		}
+		if nodeSelector != nil {
+			job.Spec.Template.Spec.NodeSelector = nodeSelector
+		}
 		return nil
 	})
 	// If Job had failed, delete it so it can be recreated
