@@ -496,6 +496,8 @@ func (m *Mover) ensureJob(ctx context.Context, dataPVC *corev1.PersistentVolumeC
 			job.Spec.Template.Spec.NodeName = m.gatewayNodeName
 		}
 		logger.V(1).Info("Job has PVC", "PVC", dataPVC, "DS", dataPVC.Spec.DataSource)
+
+		mover.AddNodeConfig(&job.Spec.Template.Spec, mover.GetGatewayNodeConfig(m.owner, m.isSource))
 		return nil
 	})
 	// If Job had failed, delete it so it can be recreated

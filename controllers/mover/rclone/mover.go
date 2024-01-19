@@ -296,6 +296,8 @@ func (m *Mover) ensureJob(ctx context.Context, dataPVC *corev1.PersistentVolumeC
 		}
 		logger.V(1).Info("Job has PVC", "PVC", dataPVC, "DS", dataPVC.Spec.DataSource)
 
+		mover.AddNodeConfig(&job.Spec.Template.Spec, mover.GetGatewayNodeConfig(m.owner, m.isSource))
+
 		podSpec := &job.Spec.Template.Spec
 
 		if customCAObj != nil {
