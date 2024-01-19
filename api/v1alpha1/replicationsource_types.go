@@ -284,6 +284,10 @@ type ReplicationSourceSpec struct {
 	// paused can be used to temporarily stop replication. Defaults to "false".
 	//+optional
 	Paused bool `json:"paused,omitempty"`
+
+	// customize node config for mover pod, including node selector and tolerations
+	//+optional
+	GatewayNodeConfig *GatewayNodeConfig `json:"gatewayNodeConfig,omitempty"`
 }
 
 type ReplicationSourceRsyncStatus struct {

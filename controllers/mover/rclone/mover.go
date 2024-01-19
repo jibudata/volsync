@@ -295,13 +295,8 @@ func (m *Mover) ensureJob(ctx context.Context, dataPVC *corev1.PersistentVolumeC
 			job.Spec.Template.Spec.Tolerations = affinity.Tolerations
 		}
 		logger.V(1).Info("Job has PVC", "PVC", dataPVC, "DS", dataPVC.Spec.DataSource)
-		nodeSelector, err := mover.AffinityFromAnnotations(m.owner.GetAnnotations())
-		if err != nil {
-			return err
-		}
-		if nodeSelector != nil {
-			job.Spec.Template.Spec.NodeSelector = nodeSelector
-		}
+
+		mover.AddNodeConfig(&job.Spec.Template.Spec, mover.GetGatewayNodeConfig(m.owner, m.isSource))
 
 		podSpec := &job.Spec.Template.Spec
 
