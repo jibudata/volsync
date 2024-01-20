@@ -34,6 +34,6 @@ ARG version_arg="(unknown)"
 RUN go build -a -o manager -ldflags "-X=main.volsyncVersion=${version_arg}" main.go
 
 ####################################################################
-FROM --platform=${TARGETPLATFORM} registry.cn-shanghai.aliyuncs.com/jibutech/volsync:0.8.0
+FROM --platform=${TARGETPLATFORM} jibutech-registry.cn-hangzhou.cr.aliyuncs.com/ys1000/volsync:0.8.0-base
 ##### VolSync operator
 COPY --from=manager-builder /workspace/manager /manager
