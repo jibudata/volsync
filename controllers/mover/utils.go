@@ -16,7 +16,7 @@ func AddNodeConfig(podSpec *corev1.PodSpec, c *volsyncv1alpha1.GatewayNodeConfig
 	}
 
 	if c.Tolerations != nil {
-		podSpec.Tolerations = append(podSpec.Tolerations, c.Tolerations...)
+		podSpec.Tolerations = c.Tolerations
 	}
 }
 
